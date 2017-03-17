@@ -147,6 +147,25 @@ system.time(
                jacfunc = "jac", dllname = "mymod",
                initfunc = "initmod", nout = 1, outnames = "Sum")
 )
+
+
+# calling the Fortran module
+
+dyn.load(paste("mymodf", .Platform$dynlib.ext, sep = ""))
+
+system.time(
+  for(i in 1:lim)
+    out <- ode(Y, times, func = "derivs", parms = parms,
+               dllname = "mymodf",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+)
+
+system.time(
+  for(i in 1:lim)
+    out <- ode(Y, times, func = "derivs", parms = parms,
+               jacfunc = "jac", dllname = "mymodf",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+)
 ```
 
 ## Benchmarking
@@ -209,6 +228,18 @@ ode.c.1 <- function(n) {
 ode.c.2 <- function(n) {
     for (i in 1:n)  ode(Y, times, func = "derivs", parms = parms,
                jacfunc = "jac", dllname = "mymod",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+}  
+
+ode.f.1 <- function(n) {
+  for (i in 1:n)  ode(Y, times, func = "derivs", parms = parms,
+               dllname = "mymodf",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+}
+
+ode.f.2 <- function(n) {
+    for (i in 1:n)  ode(Y, times, func = "derivs", parms = parms,
+               jacfunc = "jac", dllname = "mymodf",
                initfunc = "initmod", nout = 1, outnames = "Sum")
 }
 ```
@@ -292,7 +323,7 @@ timingsPrev <- timings                           # accumulate previous timings
 ```
 
 ```{r}
-
+# ODE C #2
 timings <-  vector("list", length(timeSeq))
 
 for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
@@ -311,13 +342,61 @@ print(plotTimings(timings))
 ```{r}
 timings <- rbind(timings, timingsPrev)
 print(plotTimings(timings))
+timingsPrev <- timings                           # accumulate previous timings
+```
+
+
+```{r}
+# ODE F #1
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.f.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+```
+
+
+```{r}
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+timingsPrev <- timings                           # accumulate previous timings
+```
+
+```{r}
+# ODE F #2
+timings <-  vector("list", length(timeSeq))
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.f.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+```
+
+
+```{r}
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+timingsPrev <- timings                           # accumulate previous timings
 ```
 
 
 ## Show only final results
 ```{r}
 kt <- 1
-timeSeq <- seq.int(10, 100, 10)             # short sequence
+timeSeq <- seq.int(10, 100, 20)             # short sequence
 timingsPrev <- NULL
 
 # ODE R # 1
@@ -382,6 +461,25 @@ timings <- data.table::rbindlist(timings) # convert DF to DT
 
 timings <- rbind(timings, timingsPrev)
 print(plotTimings(timings))
+
+```
+
+
+### Compiling the `C` module
+```{r}
+# Unload if the the module is loaded
+if(is.loaded("mymodf")) dyn.unload(paste("mymodf", .Platform$dynlib.ext, sep = ""))
+# delete any existing files first
+file.remove("mymodf.o")
+file.remove("mymodf.dll")
+file.remove("mymodf.so")
+
+# now, compile
+system("R CMD SHLIB mymodf.f")
+```
+
+
+```{r}
 
 ```
 
