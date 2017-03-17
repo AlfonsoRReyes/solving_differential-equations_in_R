@@ -8,47 +8,47 @@ This is the C module. It is saved as `mymod.c`.
 We will compile it below:
 
 ```
-/* file mymod.c */
-#include <R.h>
-static double parms[3];
-#define k1 parms[0]
-#define k2 parms[1]
-#define k3 parms[2]
-
-/* initializer  */
-void initmod(void (* odeparms)(int *, double *))
-{
-    int N=3;
-    odeparms(&N, parms);
-}
-
-/* Derivatives and 1 output variable */
-void derivs (int *neq, double *t, double *y, double *ydot,
-             double *yout, int *ip)
-{
-    if (ip[0] <1) error("nout should be at least 1");
-    ydot[0] = -k1*y[0] + k2*y[1]*y[2];
-    ydot[2] = k3 * y[1]*y[1];
-    ydot[1] = -ydot[0]-ydot[2];
-
-    yout[0] = y[0]+y[1]+y[2];
-}
-
-/* The Jacobian matrix */
-void jac(int *neq, double *t, double *y, int *ml, int *mu,
-           double *pd, int *nrowpd, double *yout, int *ip)
-{
-  pd[0]               = -k1;
-  pd[1]               = k1;
-  pd[2]               = 0.0;
-  pd[(*nrowpd)]       = k2*y[2];
-  pd[(*nrowpd) + 1]   = -k2*y[2] - 2*k3*y[1];
-  pd[(*nrowpd) + 2]   = 2*k3*y[1];
-  pd[(*nrowpd)*2]     = k2*y[1];
-  pd[2*(*nrowpd) + 1] = -k2 * y[1];
-  pd[2*(*nrowpd) + 2] = 0.0;
-}
-/* END file mymod.c */
+      /* file mymod.c */
+      #include <R.h>
+      static double parms[3];
+      #define k1 parms[0]
+      #define k2 parms[1]
+      #define k3 parms[2]
+      
+      /* initializer  */
+      void initmod(void (* odeparms)(int *, double *))
+      {
+          int N=3;
+          odeparms(&N, parms);
+      }
+      
+      /* Derivatives and 1 output variable */
+      void derivs (int *neq, double *t, double *y, double *ydot,
+                   double *yout, int *ip)
+      {
+          if (ip[0] <1) error("nout should be at least 1");
+          ydot[0] = -k1*y[0] + k2*y[1]*y[2];
+          ydot[2] = k3 * y[1]*y[1];
+          ydot[1] = -ydot[0]-ydot[2];
+      
+          yout[0] = y[0]+y[1]+y[2];
+      }
+      
+      /* The Jacobian matrix */
+      void jac(int *neq, double *t, double *y, int *ml, int *mu,
+                 double *pd, int *nrowpd, double *yout, int *ip)
+      {
+        pd[0]               = -k1;
+        pd[1]               = k1;
+        pd[2]               = 0.0;
+        pd[(*nrowpd)]       = k2*y[2];
+        pd[(*nrowpd) + 1]   = -k2*y[2] - 2*k3*y[1];
+        pd[(*nrowpd) + 2]   = 2*k3*y[1];
+        pd[(*nrowpd)*2]     = k2*y[1];
+        pd[2*(*nrowpd) + 1] = -k2 * y[1];
+        pd[2*(*nrowpd) + 2] = 0.0;
+      }
+      /* END file mymod.c */
 
 ```
 
@@ -68,9 +68,7 @@ system("R CMD SHLIB mymod.c")
 
 ### Build the DE model and Jacobian in pure R
 ```{r}
-library(deSolve)
-
-
+# model in R
 model <- function(t, Y, parameters) {
   with (as.list(parameters),{
 
@@ -82,7 +80,7 @@ model <- function(t, Y, parameters) {
   })
 }
 
-
+# the Jacobian
 jac <- function (t, Y, parameters) {
   with (as.list(parameters),{
 
@@ -100,9 +98,12 @@ jac <- function (t, Y, parameters) {
 
 ```
 
+
+### Solve the DifEq with R
 ```{r}
+library(deSolve)
 
-
+# input parameters
 parms <- c(k1 = 0.04, k2 = 1e4, k3 = 3e7)
 Y     <- c(1.0, 0.0, 0.0)
 times <- c(0, 0.4*10^(0:11))
@@ -112,8 +113,10 @@ PD    <- matrix(nrow = 30, ncol = 30, data = 0)
 out   <- ode(Y, times, model, parms = parms, jacfunc = jac)
 
 plot(out)
+```
 
-
+### Load the C module and compare against R
+```{r}
 # system("R CMD SHLIB mymod.c")
 
 dyn.load(paste("mymod", .Platform$dynlib.ext, sep = ""))
@@ -121,6 +124,7 @@ dyn.load(paste("mymod", .Platform$dynlib.ext, sep = ""))
 ## benchmarks
 lim <- 100
 
+# calling the R code
 system.time(
   for(i in 1:lim) out   <- ode(Y, times, model, parms = parms)
 )
@@ -129,6 +133,7 @@ system.time(
   for(i in 1:lim) out   <- ode(Y, times, model, parms = parms, jacfunc = jac)
 )
 
+# calling the C module
 system.time(
   for(i in 1:lim)
     out <- ode(Y, times, func = "derivs", parms = parms,
@@ -143,4 +148,6 @@ system.time(
                initfunc = "initmod", nout = 1, outnames = "Sum")
 )
 ```
+
+## Benchmarking
 
