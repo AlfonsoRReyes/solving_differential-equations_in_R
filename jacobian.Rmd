@@ -108,7 +108,7 @@ parms <- c(k1 = 0.04, k2 = 1e4, k3 = 3e7)
 Y     <- c(1.0, 0.0, 0.0)
 times <- c(0, 0.4*10^(0:11))
 
-PD    <- matrix(nrow = 30, ncol = 30, data = 0)
+# PD    <- matrix(nrow = 300, ncol = 300, data = 0)
 
 out   <- ode(Y, times, model, parms = parms, jacfunc = jac)
 
@@ -122,7 +122,7 @@ plot(out)
 dyn.load(paste("mymod", .Platform$dynlib.ext, sep = ""))
 
 ## benchmarks
-lim <- 100
+lim <- 10
 
 # calling the R code
 system.time(
@@ -150,4 +150,238 @@ system.time(
 ```
 
 ## Benchmarking
+
+### Function for benchmarking plots for all functions
+```{r}
+library(ggplot2)
+
+# build function to plot timings
+# devtools::install_github("WinVector/WVPlots")
+# library('WVPlots')
+plotTimings <- function(timings) {
+  timings$expr <- reorder(timings$expr, -timings$time, FUN=max)
+  # ggplot(data = timings, aes(x=stress,y=time, color=expr)) +
+  #   geom_point(alpha=0.8) + geom_smooth(alpha=0.8) 
+  
+  nmax <- max(timings$stress)
+  tsub <- timings[timings$stress==nmax,]
+  tsub$expr <- reorder(tsub$expr,tsub$time,FUN=median)
+  list(
+    ggplot(data=timings,aes(x=stress,y=time,color=expr)) +
+      geom_point(alpha=0.8) + geom_smooth(alpha=0.8),
+    ggplot(data=timings,aes(x=stress,y=time,color=expr)) +
+      geom_point(alpha=0.8) + geom_smooth(alpha=0.8) +
+      scale_y_log10(),
+    WVPlots::ScatterBoxPlot(tsub,'expr','time',
+                            title = paste('stress = ', nmax)) +
+
+      coord_flip()
+  )
+}
+```
+
+
+### Functions to test
+```{r}
+library(microbenchmark)
+library(deSolve)
+
+# input parameters
+parms <- c(k1 = 0.04, k2 = 1e4, k3 = 3e7)
+Y     <- c(1.0, 0.0, 0.0)
+times <- c(0, 0.4*10^(0:11))
+
+ode.r.1 <- function(n) {
+  for (i in 1:n) ode(Y, times, model, parms = parms)
+}
+
+ode.r.2 <- function(n) {
+  for (i in 1:n) ode(Y, times, model, parms = parms, jacfunc = jac)
+}
+
+
+ode.c.1 <- function(n) {
+  for (i in 1:n)  ode(Y, times, func = "derivs", parms = parms,
+               dllname = "mymod",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+}
+
+ode.c.2 <- function(n) {
+    for (i in 1:n)  ode(Y, times, func = "derivs", parms = parms,
+               jacfunc = "jac", dllname = "mymod",
+               initfunc = "initmod", nout = 1, outnames = "Sum")
+}
+```
+
+
+### quick test with sapply
+```{r}
+timeSeq <- seq.int(10, 100, 20)
+sapply(timeSeq, ode.r.1)
+```
+
+### set the test stress
+```{r}
+kt <- 1
+timeSeq <- seq.int(10, 100, 10)             # short sequence
+# timeSeq <- rep(10, 11)
+timingsPrev <- NULL
+```
+
+### test the R function #1
+```{r}
+# ODE R # 1
+# this list will save the dataframes created during the test
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.r.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+timingsPrev <- timings                           # save previous timings
+```
+
+### Test the R function #2
+```{r}
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.r.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+```
+
+```{r}
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+timingsPrev <- timings                           # accumulate previous timings
+```
+
+```{r}
+# ODE C #1
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+```
+
+```{r}
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+timingsPrev <- timings                           # accumulate previous timings
+```
+
+```{r}
+
+timings <-  vector("list", length(timeSeq))
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+print(plotTimings(timings))
+```
+
+
+```{r}
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+```
+
+
+## Show only final results
+```{r}
+kt <- 1
+timeSeq <- seq.int(10, 100, 10)             # short sequence
+timingsPrev <- NULL
+
+# ODE R # 1
+# this list will save the dataframes created during the test
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.r.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+
+# ODE R #2
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.r.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+# ODE C #1
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+# ODE C #2
+timings <-  vector("list", length(timeSeq))
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
+
+```
 
