@@ -1,0 +1,42 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Analytical Solution
+```{r}
+logistic <- function(t, r, K, N0) {
+K * N0 * exp(r * t) / (K + N0 * (exp(r * t) - 1))
+}
+
+plot(0:100, logistic(t = 0:100, r = 0.1, K = 10, N0 = 0.1))
+```
+
+## Numerical solution
+```{r}
+library(deSolve)
+model <- function (time, y, parms) {
+with(as.list(c(y, parms)), {
+dN <- r * N * (1 - N / K)
+list(dN)
+})
+}
+y <- c(N = 0.1)
+parms <- c(r = 0.1, K = 10)
+times <- seq(0, 100, 1)
+out <- ode(y, times, model, parms)
+plot(out)
+```
+
+```{r}
+head(out, n = 4)
+```
+
+```{r}
+summary(out)
+```
+
+```{r}
+plot(out, main = "logistic growth", lwd = 2)
+```
+
