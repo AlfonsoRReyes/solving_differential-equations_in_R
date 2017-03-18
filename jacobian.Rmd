@@ -483,7 +483,7 @@ system("R CMD SHLIB mymodf.f")
 
 ```{r}
 kt <- 1
-timeSeq <- seq.int(10, 500, 10)             # short sequence
+timeSeq <- seq.int(50, 1000, 50)             # short sequence
 timingsPrev <- NULL
 
 # ODE Fortran # 1
