@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+# residual function (4 mandatory arguments):
+RobertsonDAE <- function(t, y, dy, parms) {
+res1 <- -dy[1] - 0.04*y[1] + 1e4*y[2]*y[3]
+res2 <- -dy[2] + 0.04*y[1] - 1e4*y[2]*y[3] - 3e7* y[2]^2
+res3 <- - 1 + y[1] + y[2] + y[3]
+list(c(res1, res2, res3))
+}
+
+# initial conditions (values, derivatives):
+yini <- c(y1 = 1.0, y2 = 0, y3 = 0)
+dyini <- rep(0, 3) # rough guess often good enough
+
+# olution:
+times <- 10^(seq(from = 0, to = 10, by = 0.1))
+out <- daspk(y = yini, dy = dyini, res = RobertsonDAE, parms = NULL,
+times = times)
+
+# plotting
+plot(out, log = "x", col = "darkblue", lwd = 2, mfrow=c(1,3))
+```
+

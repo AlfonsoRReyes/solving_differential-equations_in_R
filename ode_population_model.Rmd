@@ -1,0 +1,109 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Source: http://tolstoy.newcastle.edu.au/R/e7/help/09/06/1230.html
+
+you may consider using package simecol (http://www.simecol.de). You find several
+examples on the help pages and also some PDF files (so called vignettes). If you
+have many species, you should consider using matrix formulations. The example
+below demonstrates a multi-species Lotka-Volterra model with an interaction
+matrix A.
+
+While the example is not yet your model it may serve as a starting point. If you
+have any further questions, please let me know.
+
+Thomas Petzoldt
+
+```{r}
+library(simecol)
+
+##########################################################
+## Basic Multi Species Predator Prey Model
+## 1) parameters for pairwise single species interaction
+##########################################################
+
+LVPP <- new("odeModel",
+
+   main = function(t, n, parms) {
+
+     with(parms, {
+       dn <- r * n  + n * (A %*% n)
+       return(list(c(dn)))
+     })
+
+   }, 
+   parms = list(
+     r = c(r1 = 0.1, r2 = 0.1, r3 = -0.1, r4 = -0.1),
+     ## only pairwise interactions:
+     A = matrix(c(0.0, 0.0, -0.2, 0.0,      # prey 1
+                  0.0, 0.0, 0.0, -0.1,      # prey 2
+                  0.2, 0.0, 0.0, 0.0,       # predator 1; eats prey 1
+                  0.0, 0.1, 0.0, 0.0),      # predator 2; eats prey 2
+                  nrow = 4, ncol = 4, byrow=TRUE)
+   ), 
+   times = seq(from=0, to=500, by = 0.1),    init = c(prey1=1, prey2=1, pred1=2, pred2=2),    solver = "lsoda" 
+)
+plot(sim(LVPP))
+
+##########################################################
+## 2) multi species interactions
+##########################################################
+
+## make two clones of LVPP 
+LVPPweak <- LVPPstrong <- LVPP
+
+## a helper function
+
+## this copies the negative of the upper triangular to the lower 
+makeSym <- function(A, f = -1) {
+
+   ind <- lower.tri(A) 
+   A[ind] <- f * t(A)[ind] 
+   A 
+}
+
+## weak coupling
+
+A <- matrix(c(0.0, 0.0, -0.1, -0.001,       # prey 1
+               NA,  0.0, -0.002, -0.2,       # prey 2
+               NA,  NA,   0.0,   0.0,        # predator 1
+               NA,  NA,   NA,    0.0),       # predator 2
+               nrow = 4, ncol = 4, byrow=TRUE)
+
+parms(LVPPweak)$A <- makeSym(A)
+
+## stronger coupling
+
+A <- matrix(c(0.0, 0.0, -0.1, -0.05,        # prey 1
+               NA,  0.0, -0.02, -0.2,        # prey 2
+               NA,  NA,   0.0,   0.0,        # predator 1
+               NA,  NA,   NA,    0.0),       # predator 2
+               nrow = 4, ncol = 4, byrow=TRUE)
+
+parms(LVPPstrong)$A <- makeSym(A)
+
+LVPPweak <- sim(LVPPweak) 
+LVPPstrong <- sim(LVPPstrong)
+
+plot(LVPPweak) 
+plot(LVPPstrong)
+
+o <- out(LVPPweak) 
+par(mfrow=c(2,2)) 
+plot(o$prey1, o$pred1) 
+plot(o$prey2, o$pred2)
+
+plot(o$prey1, o$pred2) 
+plot(o$prey2, o$pred1)
+
+o <- out(LVPPstrong) 
+par(mfrow=c(2,2)) 
+plot(o$prey1, o$pred1) 
+plot(o$prey2, o$pred2)
+
+plot(o$prey1, o$pred2) 
+plot(o$prey2, o$pred1)
+```
+

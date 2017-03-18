@@ -1,0 +1,37 @@
+---
+title: "2-D combustion problem in R"
+output: html_notebook
+---
+
+Source: http://desolve.r-forge.r-project.org/user2014/tutorial.pdf
+
+```{r}
+# grid and parameters:
+library(ReacTran)
+
+N <- 100
+Grid <- setup.grid.1D(0, 1, N = N)
+alfa <- 1; delta <- 20; R <- 5
+
+
+# derivative function:
+Combustion <- function(t, y, p) {
+U <- matrix(nrow = N, ncol = N, data = y)
+reac <- R /alfa/delta * (1+alfa-U) * exp(delta*(1-1/U))
+tran <- tran.2D(C = U, D.x = 1, flux.x.up = 0, flux.y.up = 0, C.x.down = 1,
+C.y.down = 1, dx = Grid, dy = Grid)
+list (tran$dC+ reac)
+}
+
+# solution (10000 equations):
+print(system.time(
+std <- steady.2D(y = rep(1, N*N), parms = NULL, func = Combustion, nspec = 1,
+dimens = c(N, N), lrw = 1e6, positive = TRUE)
+))
+
+```
+
+```{r}
+image(std, main = "Combustion", legend = TRUE)
+```
+

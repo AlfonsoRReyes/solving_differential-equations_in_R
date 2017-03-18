@@ -1,0 +1,27 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(deSolve)
+rigidode <- function(t, y, parms) {
+dy1 <- -2 * y[2] * y[3]
+dy2 <- 1.25 * y[1] * y[3]
+dy3 <- -0.5 * y[1] * y[2]
+list(c(dy1, dy2, dy3))
+}
+yini <- c(y1 = 1, y2 = 0, y3 = 0.9)
+times <- seq(from = 0, to = 20, by = 0.01)
+out <- ode (times = times, y = yini, func = rigidode, parms = NULL)
+head (out, n = 3)
+```
+
+```{r fig.asp=1}
+plot(out)
+library(scatterplot3d)
+par(mar = c(0, 0, 0, 0))
+scatterplot3d(out[,-1])
+```
+

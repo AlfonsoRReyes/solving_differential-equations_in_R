@@ -1,0 +1,39 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r fig.asp=1}
+# derivative function:
+pendulum <- function (t, Y, parms) {
+with (as.list(Y),
+list(c(u,
+v,
+-lam * x,
+-lam * y - 9.8,
+x^2 + y^2 -1
+))
+)
+}
+
+
+# mass matrix and index vector:
+M <- diag(nrow = 5)
+M[5, 5] <- 0
+index <- c(2, 2, 1)
+
+
+# initial conditions:
+yini <- c(x = 1, y = 0, u = 0, v = 1, lam = 1)
+
+# solution :
+times <- seq(from = 0, to = 10, by = 0.01)
+out <- radau (y = yini, func = pendulum, parms = NULL,
+times = times, mass = M, nind = index)
+
+plot(out, type = "l", lwd = 2)
+plot(out[, c("x", "y")], type = "l", lwd = 2)
+```
+
