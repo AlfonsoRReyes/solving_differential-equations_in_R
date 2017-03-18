@@ -1,7 +1,9 @@
 ---
-title: "R Notebook"
+title: "Lorenz"
 output: html_notebook
 ---
+
+Source: http://desolve.r-forge.r-project.org/user2014/examples/compiled_lorenz/
 
 ```{r}
 library(deSolve)
