@@ -465,7 +465,7 @@ print(plotTimings(timings))
 ```
 
 
-### Compiling the `C` module
+### Compiling the `Fortran` module
 ```{r}
 # Unload if the the module is loaded
 if(is.loaded("mymodf")) dyn.unload(paste("mymodf", .Platform$dynlib.ext, sep = ""))
@@ -479,7 +479,75 @@ system("R CMD SHLIB mymodf.f")
 ```
 
 
+## Compare only C and Fortran modules
+
 ```{r}
+kt <- 1
+timeSeq <- seq.int(10, 500, 10)             # short sequence
+timingsPrev <- NULL
+
+# ODE Fortran # 1
+# this list will save the dataframes created during the test
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.f.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+
+# ODE Fortran #2
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.f.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+
+# ODE C #1
+timings <- vector("list", length(timeSeq))    # create a vector of lists
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.1(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+timingsPrev <- timings                           # accumulate previous timings
+
+# ODE C #2
+timings <-  vector("list", length(timeSeq))
+
+for(i in seq_len(length(timeSeq))) {          # iterate throgh time sequence
+  stress <- timeSeq[[i]]                      # get stress for the current DF
+  ti <- microbenchmark(ode.c.2(stress), times = 10)
+  ti$stress <- stress                         # document stress
+  ti <- data.frame(ti, stringsAsFactors = FALSE) # no factors
+  timings[[i]] <- ti                          # save DF in the list
+}
+
+timings <- data.table::rbindlist(timings) # convert DF to DT
+
+timings <- rbind(timings, timingsPrev)
+print(plotTimings(timings))
 
 ```
-
