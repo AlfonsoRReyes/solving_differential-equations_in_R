@@ -3,6 +3,9 @@ title: "R Notebook"
 output: html_notebook
 ---
 
+Source: http://desolve.r-forge.r-project.org/user2014/tutorial.pdf
+
+
 ```{r}
 library(deSolve)
 library(FME)

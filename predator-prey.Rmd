@@ -1,0 +1,38 @@
+---
+title: "Predator-Prey"
+output: html_notebook
+---
+
+
+```{r}
+# Create an artificial time-series
+times <- seq(0, 100, by = 0.1)
+signal <- as.data.frame(list(times = times, import = rep(0, length(times))))
+signal$import <- ifelse((trunc(signal$times) %% 2 == 0), 0, 1)
+signal[8:12,]
+
+# Create the interpolating function, using approxfun
+input <- approxfun(signal, rule = 2)
+input(seq(from = 0.98, to = 1.01, by = 0.005))
+
+# Use interpolation function in ODE function
+SPCmod <- function(t, x, parms) {
+with(as.list(c(parms, x)), {
+import <- input(t)
+dS <- import - b * S * P + g * C
+dP <- c * S * P - d * C * P
+dC <- e * P * C - f * C
+res <- c(dS, dP, dC)
+list(res, signal = import)
+})
+}
+
+
+parms <- c(b = 0.1, c = 0.1, d = 0.1, e = 0.1, f = 0.1, g = 0)
+xstart <- c(S = 1, P = 1, C = 1)
+out <- ode(y = xstart, times = times, func = SPCmod, parms)
+
+plot(out)
+
+```
+

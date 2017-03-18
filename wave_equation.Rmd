@@ -1,0 +1,38 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(ReacTran)
+wave <- function (t, y, parms) {
+u <- y[1:N]
+v <- y[(N+1):(2*N)]
+du <- v
+dv <- tran.1D(C = u, C.up = 0, C.down = 0, D = 1,
+dx = xgrid)$dC
+list(c(du, dv))
+}
+xgrid <- setup.grid.1D(-100, 100, dx.1 = 0.2)
+x <- xgrid$x.mid
+N <- xgrid$N
+uini <- exp(-0.2*x^2)
+vini <- rep(0, N)
+yini <- c(uini, vini)
+times <- seq (from = 0, to = 50, by = 1)
+
+out <- ode.1D(yini, times, wave, parms, method = "adams",
+names = c("u", "v"), dimens = N)
+
+# Plotting 1-D PDEs: matplot.1D
+outtime <- seq(from = 0, to = 50, by = 10)
+matplot.1D(out, which = "u", subset = time %in% outtime, grid = x,
+xlab = "x", ylab = "u", type = "l", lwd = 2, xlim = c(-50, 50), col="black")
+
+image(out, which = "u", grid = x)
+
+image(out, which = "u", grid = x, method = "persp", border = NA,
+col = "lightblue", box = FALSE, shade = 0.5, theta = 0, phi = 60)
+```
+

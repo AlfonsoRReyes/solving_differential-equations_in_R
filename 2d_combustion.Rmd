@@ -3,6 +3,8 @@ title: "2-D combustion problem in R"
 output: html_notebook
 ---
 
+Source: http://desolve.r-forge.r-project.org/user2014/tutorial.pdf
+
 ```{r}
 # grid and parameters:
 library(ReacTran)
